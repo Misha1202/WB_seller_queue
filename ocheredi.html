@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f5f3ff">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+    <title>Очередь выгрузки — ТОП-10</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --grad-start: #7c3aed;
+            --grad-end: #4f46e5;
+            --bg-light: #ede9fe;
+            --card-bg: rgba(255, 255, 255, 0.75);
+            --text-main: #2e1065;
+            --text-muted: #6d28d9;
+            --shadow: 0 20px 40px -12px rgba(79, 70, 229, 0.3);
+            --border-radius: 20px;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(145deg, #f5f3ff 0%, #ddd6fe 100%);
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--border-radius);
+            padding: 28px 24px 32px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        h2 {
+            margin: 0 0 6px 0;
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+        .subhead {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-top: -2px;
+            margin-bottom: 18px;
+            opacity: 0.8;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            background: rgba(255, 255, 255, 0.4);
+            padding: 6px 14px 6px 18px;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .status-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #10b981;
+            transition: all 0.3s ease;
+        }
+        .status-dot.loading {
+            background: #f59e0b;
+            animation: pulse 0.8s ease-in-out infinite;
+        }
+        .status-dot.error {
+            background: #ef4444;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+        #last-update {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+        .btn-refresh {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+            border: none;
+            padding: 6px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(109, 40, 217, 0.25);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .btn-refresh:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 16px rgba(109, 40, 217, 0.35);
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        }
+        .btn-refresh:disabled {
+            opacity: 0.5;
+            transform: scale(0.96);
+            pointer-events: none;
+            box-shadow: none;
+        }
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 4px;
+            min-height: 60px;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 12px 16px 12px 14px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.04);
+            animation: fadeInItem 0.25s ease;
+        }
+        @keyframes fadeInItem {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .list-item:hover {
+            background: rgba(255, 255, 255, 0.85);
+            border-color: #a78bfa;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(109, 40, 217, 0.12);
+        }
+        .item-time {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: rgba(139, 92, 246, 0.08);
+            padding: 4px 10px;
+            border-radius: 30px;
+            min-width: 60px;
+            text-align: center;
+            letter-spacing: 0.2px;
+            flex-shrink: 0;
+            margin-right: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+        .item-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            position: relative;
+        }
+        .checkbox-wrapper input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+        .checkmark {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border: 2px solid #c4b5fd;
+            border-radius: 50%;
+            display: block;
+            transition: all 0.2s ease;
+            position: relative;
+            box-shadow: 0 0 0 0 rgba(139, 92, 246, 0);
+            cursor: pointer;
+        }
+        .list-item:hover .checkmark {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+        }
+        .checkbox-wrapper input:checked ~ .checkmark {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            border-color: #6d28d9;
+            box-shadow: 0 4px 12px rgba(109, 40, 217, 0.3);
+        }
+        .checkmark:after {
+            content: "";
+            position: absolute;
+            display: none;
+            left: 7px;
+            top: 3px;
+            width: 6px;
+            height: 11px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        .checkbox-wrapper input:checked ~ .checkmark:after {
+            display: block;
+        }
+        .list-item.saving {
+            opacity: 0.45;
+            pointer-events: none;
+            transform: scale(0.97);
+        }
+        .empty-message {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 500;
+            padding: 32px 0 18px;
+            opacity: 0.7;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(46, 16, 101, 0.3);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            animation: fadeIn 0.25s ease;
+        }
+        .modal-box {
+            background: white;
+            max-width: 360px;
+            width: 90%;
+            padding: 28px 24px 24px;
+            border-radius: 28px;
+            box-shadow: 0 30px 50px -20px rgba(79, 70, 229, 0.5);
+            text-align: center;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+        .modal-box h3 {
+            margin: 0 0 6px 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .modal-box p {
+            margin: 10px 0 20px;
+            color: #4b5563;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .modal-box .highlight {
+            font-weight: 700;
+            color: #7c3aed;
+            background: #ede9fe;
+            padding: 2px 12px;
+            border-radius: 30px;
+            display: inline-block;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .modal-actions button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 40px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+        }
+        .btn-confirm {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: white;
+            box-shadow: 0 4px 12px rgba(109, 40, 217, 0.25);
+        }
+        .btn-confirm:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 18px rgba(109, 40, 217, 0.35);
+        }
+        .btn-cancel {
+            background: #f3f0ff;
+            color: #5b21b6;
+        }
+        .btn-cancel:hover {
+            background: #ede9fe;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        @media (max-width: 480px) {
+            .container { padding: 20px 16px 24px; }
+            .item-time { font-size: 11px; min-width: 50px; padding: 3px 8px; margin-right: 8px; }
+            .item-text { font-size: 14px; }
+            .checkmark { width: 22px; height: 22px; }
+            .checkbox-wrapper { width: 26px; height: 26px; }
+            .checkmark:after { left: 6px; top: 2px; width: 5px; height: 10px; }
+            .controls { padding: 6px 10px; }
+            .status-area { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚛 Очередь</h2>
+    <div class="subhead">ТОП‑10 на выгрузку</div>
+
+    <div class="controls">
+        <div class="status-area">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-message">Загрузка…</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span id="last-update">—</span>
+            <button id="refresh-btn" class="btn-refresh" onclick="manualRefresh()">⟳ Обновить</button>
+        </div>
+    </div>
+
+    <div id="list-container" class="list-container"></div>
+</div>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfLB7IK12S9ByWjPa-wYQuQEkKFfU47GcEd3bVzpIU0otnYpAMRlejiJGBiRYNuL1Z/exec";
+
+    let allServerRows = [];
+    let pendingItem = null;
+    let updateTimer = null;
+    let isUpdating = false;
+
+    function isOffline() { return navigator.onLine === false; }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function setStatus(text, type = 'idle') {
+        const msg = document.getElementById('status-message');
+        const dot = document.getElementById('status-dot');
+        msg.textContent = text;
+        dot.className = 'status-dot';
+        if (type === 'loading') dot.classList.add('loading');
+        else if (type === 'error') dot.classList.add('error');
+    }
+
+    function updateLastUpdateTime() {
+        const el = document.getElementById('last-update');
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        el.textContent = `🕐 ${hh}:${mm}:${ss}`;
+    }
+
+    async function loadTableData(silent = false) {
+        if (isUpdating) return;
+        isUpdating = true;
+
+        const refreshBtn = document.getElementById('refresh-btn');
+        if (isOffline() && allServerRows.length === 0) {
+            isUpdating = false;
+            setStatus('📡 Нет сети — очередь недоступна', 'error');
+            return;
+        }
+        if (!silent) {
+            refreshBtn.disabled = true;
+            setStatus('Обновление…', 'loading');
+        } else {
+            setStatus('Обновление…', 'loading');
+        }
+
+        try {
+            const response = await fetch(WEB_APP_URL, {
+                method: 'GET',
+                cache: 'no-store'
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const rawData = await response.json();
+
+            if (!Array.isArray(rawData) || rawData.length < 2) {
+                throw new Error('Невалидный формат данных');
+            }
+
+            allServerRows = rawData.slice(1);
+            renderTop10();
+            updateLastUpdateTime();
+            setStatus('✅ Данные актуальны', 'idle');
+            setTimeout(() => setStatus('', 'idle'), 2000);
+
+        } catch (error) {
+            setStatus(`⚠️ Ошибка — авто-повтор через 60 с`, 'error');
+            if (allServerRows.length > 0) {
+                renderTop10();
+            }
+        } finally {
+            isUpdating = false;
+            if (!silent) refreshBtn.disabled = false;
+        }
+    }
+
+    function manualRefresh() {
+        loadTableData(false);
+    }
+
+    function renderTop10() {
+        const container = document.getElementById('list-container');
+        container.innerHTML = '';
+
+        const filtered = allServerRows.filter(row => {
+            const colA = row[0];
+            const colD = row[3];
+            return colA !== undefined && colA !== null &&
+                   String(colA).trim() !== '' &&
+                   String(colD).trim() !== 'Да';
+        });
+
+        filtered.sort((a, b) => {
+            try {
+                const dateA = new Date(a[0]);
+                const dateB = new Date(b[0]);
+                if (isNaN(dateA.getTime())) return 1;
+                if (isNaN(dateB.getTime())) return -1;
+                return dateA - dateB;
+            } catch (e) {
+                return 0;
+            }
+        });
+
+        const top10 = filtered.slice(0, 10);
+
+        if (top10.length === 0) {
+            container.innerHTML = `<div class="empty-message">✨ Очередь пуста</div>`;
+            return;
+        }
+
+        top10.forEach((row) => {
+            const timeRaw = row[0] || '';
+            const carNumber = row[1] || '';
+
+            let timeStr = '—';
+            try {
+                const d = new Date(timeRaw);
+                if (!isNaN(d.getTime())) {
+                    timeStr = String(d.getHours()).padStart(2, '0') + ':' +
+                              String(d.getMinutes()).padStart(2, '0') + ':' +
+                              String(d.getSeconds()).padStart(2, '0');
+                }
+            } catch (_) {}
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'list-item';
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'item-time';
+            timeSpan.textContent = timeStr;
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'item-text';
+            textSpan.textContent = carNumber || '—';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'checkbox-wrapper';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+
+            const checkmark = document.createElement('span');
+            checkmark.className = 'checkmark';
+
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(checkmark);
+
+            itemDiv.appendChild(timeSpan);
+            itemDiv.appendChild(textSpan);
+            itemDiv.appendChild(wrapper);
+
+            itemDiv.addEventListener('click', function (e) {
+                if (e.target.closest('.checkbox-wrapper')) return;
+                const cleanNumber = String(carNumber).trim();
+                if (!cleanNumber || cleanNumber === '—') return;
+                pendingItem = { div: itemDiv, value: cleanNumber, checkbox: checkbox };
+                showConfirmModal(cleanNumber);
+            });
+
+            checkbox.addEventListener('change', function (e) {
+                if (this.checked) {
+                    const cleanNumber = String(carNumber).trim();
+                    if (!cleanNumber || cleanNumber === '—') {
+                        this.checked = false;
+                        return;
+                    }
+                    pendingItem = { div: itemDiv, value: cleanNumber, checkbox: this };
+                    showConfirmModal(cleanNumber);
+                    this.checked = false;
+                }
+            });
+
+            container.appendChild(itemDiv);
+        });
+    }
+
+    function showConfirmModal(value) {
+        const old = document.querySelector('.modal-overlay');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const box = document.createElement('div');
+        box.className = 'modal-box';
+        box.innerHTML = `
+            <h3>⚡ Подтверждение</h3>
+            <p>Отметить <br><span class="highlight">${esc(value)}</span> как <strong>выгруженный</strong>?</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modal-cancel">Отмена</button>
+                <button class="btn-confirm" id="modal-confirm">Да, выгружен</button>
+            </div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            overlay.remove();
+            pendingItem = null;
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            overlay.remove();
+            if (pendingItem) {
+                sendCheckboxToGoogle(pendingItem.value, pendingItem.div);
+                pendingItem = null;
+            }
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                pendingItem = null;
+            }
+        });
+    }
+
+    function sendCheckboxToGoogle(valueText, itemDiv) {
+        if (isOffline()) {
+            setStatus('📡 Нет сети — машина осталась в очереди', 'error');
+            setTimeout(() => setStatus('', 'idle'), 4000);
+            return;
+        }
+        itemDiv.classList.add('saving');
+        const cleanValue = String(valueText).trim();
+
+        setStatus(`⏳ Отправка: ${cleanValue}`, 'loading');
+
+        fetch(WEB_APP_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ valueToHide: cleanValue })
+        })
+        .then(() => {
+            allServerRows = allServerRows.filter(row => String(row[1]).trim() !== cleanValue);
+            renderTop10();
+            updateLastUpdateTime();
+            setStatus(`✅ ${cleanValue} выгружен`, 'idle');
+            setTimeout(() => setStatus('', 'idle'), 2000);
+        })
+        .catch(() => {
+            // Не удаляем машину: отправка не прошла, она должна остаться в очереди
+            setStatus(`⚠️ Ошибка отправки — ${esc(cleanValue)} остался в очереди`, 'error');
+            setTimeout(() => setStatus('', 'idle'), 4000);
+        })
+        .finally(() => {
+            itemDiv.classList.remove('saving');
+        });
+    }
+
+    function startAutoUpdate() {
+        if (updateTimer) clearInterval(updateTimer);
+        updateTimer = setInterval(() => {
+            loadTableData(true);
+        }, 60000);
+    }
+
+    async function init() {
+        await loadTableData(false);
+        startAutoUpdate();
+    }
+
+    init();
+
+    window.addEventListener('beforeunload', () => {
+        if (updateTimer) clearInterval(updateTimer);
+    });
+</script>
+</body>
+</html>

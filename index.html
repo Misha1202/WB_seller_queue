@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f5f3ff">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <title>Очередь выгрузки — ТОП-10</title>
     <style>
         * { box-sizing: border-box; }
@@ -379,6 +381,13 @@
     let updateTimer = null;
     let isUpdating = false;
 
+    function isOffline() { return navigator.onLine === false; }
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
     function setStatus(text, type = 'idle') {
         const msg = document.getElementById('status-message');
         const dot = document.getElementById('status-dot');
@@ -402,6 +411,11 @@
         isUpdating = true;
 
         const refreshBtn = document.getElementById('refresh-btn');
+        if (isOffline() && allServerRows.length === 0) {
+            isUpdating = false;
+            setStatus('📡 Нет сети — очередь недоступна', 'error');
+            return;
+        }
         if (!silent) {
             refreshBtn.disabled = true;
             setStatus('Обновление…', 'loading');
@@ -430,7 +444,7 @@
             setTimeout(() => setStatus('', 'idle'), 2000);
 
         } catch (error) {
-            setStatus(`⚠️ Ошибка`, 'error');
+            setStatus(`⚠️ Ошибка — авто-повтор через 60 с`, 'error');
             if (allServerRows.length > 0) {
                 renderTop10();
             }
@@ -552,7 +566,7 @@
         box.className = 'modal-box';
         box.innerHTML = `
             <h3>⚡ Подтверждение</h3>
-            <p>Отметить <br><span class="highlight">${value}</span> как <strong>выгруженный</strong>?</p>
+            <p>Отметить <br><span class="highlight">${esc(value)}</span> как <strong>выгруженный</strong>?</p>
             <div class="modal-actions">
                 <button class="btn-cancel" id="modal-cancel">Отмена</button>
                 <button class="btn-confirm" id="modal-confirm">Да, выгружен</button>
@@ -584,6 +598,11 @@
     }
 
     function sendCheckboxToGoogle(valueText, itemDiv) {
+        if (isOffline()) {
+            setStatus('📡 Нет сети — машина осталась в очереди', 'error');
+            setTimeout(() => setStatus('', 'idle'), 4000);
+            return;
+        }
         itemDiv.classList.add('saving');
         const cleanValue = String(valueText).trim();
 
@@ -605,10 +624,9 @@
             setTimeout(() => setStatus('', 'idle'), 2000);
         })
         .catch(() => {
-            setStatus(`⚠️ Ошибка`, 'error');
-            allServerRows = allServerRows.filter(row => String(row[1]).trim() !== cleanValue);
-            renderTop10();
-            setTimeout(() => setStatus('', 'idle'), 3000);
+            // Не удаляем машину: отправка не прошла, она должна остаться в очереди
+            setStatus(`⚠️ Ошибка отправки — ${esc(cleanValue)} остался в очереди`, 'error');
+            setTimeout(() => setStatus('', 'idle'), 4000);
         })
         .finally(() => {
             itemDiv.classList.remove('saving');
